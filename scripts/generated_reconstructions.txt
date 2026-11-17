@@ -1,0 +1,16 @@
+/home/jbarrag3/research/reconstruction_data/scan_26-05-19/reconstructions/kidney_10cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-05-19/reconstructions/kidney_5cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-05-19/reconstructions/kidney_7cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-05-19/reconstructions/lungs_10cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-05-19/reconstructions/lungs_5cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-05-19/reconstructions/lungs_7cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-06-09/reconstructions/porc_belly/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/intestines_10cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/intestines_7cm_1/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/intestines_7cm_2/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/left_lungs_10cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/left_lungs_5cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/left_lungs_7cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/right_lungs_10cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/right_lungs_3cm/output_mesh_high_res.ply
+/home/jbarrag3/research/reconstruction_data/scan_26-07-07/reconstructions/right_lungs_5cm/output_mesh_high_res.ply

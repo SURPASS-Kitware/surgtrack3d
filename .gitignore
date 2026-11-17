@@ -1,0 +1,22 @@
+# VSCode settings
+.vscode/
+
+# clangd cache
+.cache/
+
+# Build trees
+build/
+build_python/
+dist/
+*.egg-info/
+
+# Python
+.venv/
+__pycache__/
+
+# Documentation build
+docs/api/_build/
+
+# Non-versioned models etc.
+foundation_stereo/
+co-tracker/

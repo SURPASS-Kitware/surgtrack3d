@@ -1,0 +1,20 @@
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "kinematic_ba"
+version = "0.1.0"
+description = "Ceres bundle adjustment with robot-kinematic pose priors (C++ with Python bindings)"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[tool.scikit-build]
+build-dir = "build_python"
+cmake.args = ["--preset vcpkg"]
+cmake.build-type = "RelWithDebInfo"
+cmake.python-hints = false
+wheel.packages = ["kinematic_ba"]
+editable.mode = "redirect"
+editable.rebuild = true
+editable.verbose = true

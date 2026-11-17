@@ -1,0 +1,36 @@
+[build-system]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "fast_tissue_rec"
+version = "0.1.0"
+description = "Fast metric 3D tissue reconstruction: feature tracking, stereo depth, and GPU volumetric fusion"
+requires-python = ">=3.10"
+# Pinned versions live in the top-level requirements.txt.
+# tensorrt is not listed: its version must match the one used to build the .engine (see requirements.txt).
+dependencies = [
+    "kinematic_ba",
+    "cuda-bindings",
+    "cupy-cuda13x",
+    "imageio",
+    "matplotlib",
+    "natsort",
+    "numpy",
+    "open3d",
+    "opencv-python",
+    "pycuda",
+    "pyyaml",
+    "scikit-image",
+    "scipy",
+    "trimesh",
+    "tqdm",
+]
+
+[tool.scikit-build]
+build-dir = "build_python"
+cmake.build-type = "RelWithDebInfo"
+wheel.packages = ["fast_tissue_rec"]
+editable.mode = "redirect"
+editable.rebuild = true
+editable.verbose = true
