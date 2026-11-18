@@ -294,10 +294,15 @@ def register(source_path, target_path, out_dir,
     jobs = min(jobs, len(tasks))
 
     if jobs > 1:
+        import multiprocessing
         from concurrent.futures import ProcessPoolExecutor
         vp(f"  running sweep on {jobs} parallel workers")
+        # "spawn", not the Linux default "fork": the parent has already run
+        # Open3D (thread pools), and forked children can inherit a held lock and
+        # deadlock forever.
         with ProcessPoolExecutor(
-            max_workers=jobs, initializer=_sweep_init,
+            max_workers=jobs, mp_context=multiprocessing.get_context("spawn"),
+            initializer=_sweep_init,
             initargs=(src_pts, src_centroid, tgt_pts, voxel),
         ) as ex:
             results = list(ex.map(_sweep_candidate, tasks))
