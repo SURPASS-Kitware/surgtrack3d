@@ -63,6 +63,7 @@ The code is modular: install only what you need. `fast_tissue_rec` has a small C
 | + stereo depth estimation | `fast_tissue_rec[depth]` | CUDA 13.2, TensorRT engine |
 | + volumetric fusion | `fast_tissue_rec[fusion]` | CUDA 13.2 (`nvcc`, compiles the TSDF kernel) |
 | + visualization scripts | `fast_tissue_rec[viz]` | — |
+| Reconstruction evaluation (registration + RMSE) | `fast_tissue_rec[eval]` | nothing beyond Python (no CUDA) |
 | Full pipeline (`python -m fast_tissue_rec`) | `kinematic_ba` + `fast_tissue_rec[all]` | all of the above |
 
 Extras can be combined, e.g. `fast_tissue_rec[depth,viz]`.
@@ -101,6 +102,12 @@ source .venv/bin/activate
 **Lightweight (CPU only, e.g. rectification and tracking):**
 ```sh
 pip install ./src/fast_tissue_rec -c src/fast_tissue_rec/requirements.txt
+```
+
+**Evaluation only (no CUDA, works on macOS/Linux):**
+```sh
+pip install "./src/fast_tissue_rec[eval]" -c src/fast_tissue_rec/requirements.txt \
+    -C cmake.define.FTR_BUILD_CUDA=OFF
 ```
 
 **Full pipeline**, from the repository root:
@@ -198,6 +205,24 @@ Individual steps of the pipeline can be run one at a time for easier analysis an
   python $SCRIPTS/visualization/visualize_depth_clouds.py -d ./depth_maps/depth_map_index.json -s ./tracking_output/images/stereo_index.json -c ./input_data/calibration.json -p ./tracking_output/slam_poses.json -o ./depth_maps
   ```
   This will produce a separate PLY file for each frame, which can be viewed in Meshlab. Make sure to set the point shading to "None" to properly view the colors. The point clouds are registered in the world/robot frame, so you can easily view multiple of them simultaneously.
+
+### Evaluation
+
+Register each reconstruction to its ground-truth mesh (similarity transform, ground truth = target) and compute the source→target surface RMSE ± STD in mm, as reported in the paper:
+
+```sh
+python -m fast_tissue_rec.evaluation.run_evaluation \
+    --recon_dir data_intermediate_outputs/reconstruction \
+    --gt_dir dataset/ground_truth_meshes \
+    --output_dir data_intermediate_outputs/results
+```
+
+This writes, per reconstruction, `<output_dir>/<name>/` (transform, aligned mesh, report, overlay/heatmap) and a summary `<output_dir>/reconstruction_metrics.csv`. The two steps can also be run on a single pair:
+
+```sh
+python -m fast_tissue_rec.evaluation.register_meshes --source rec.ply --target gt.obj --out_dir out --seed 47
+python -m fast_tissue_rec.evaluation.reconstruction_metrics out/aligned_source.ply gt.obj
+```
 
 ## Datasets
 

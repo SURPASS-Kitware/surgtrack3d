@@ -41,10 +41,16 @@ viz = [
     "matplotlib",
     "open3d",
 ]
+# Reconstruction evaluation: mesh registration to ground truth + accuracy metrics
+# (fast_tissue_rec.evaluation). numpy/scipy come from core.
+eval = [
+    "matplotlib",
+    "open3d",
+]
 # Sphinx API docs.
 docs = ["sphinx"]
-# Full pipeline (python -m fast_tissue_rec) + visualization.
-all = ["fast_tissue_rec[ba,depth,fusion,viz]"]
+# Full pipeline (python -m fast_tissue_rec) + visualization + evaluation.
+all = ["fast_tissue_rec[ba,depth,fusion,viz,eval]"]
 
 [tool.scikit-build]
 build-dir = "build_python"

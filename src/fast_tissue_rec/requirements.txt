@@ -21,7 +21,7 @@ pycuda==2026.1
 scikit-image==0.26.0
 trimesh==4.12.2
 
-# [viz]
+# [viz], [eval]
 matplotlib==3.11
 open3d==0.19.0
 
