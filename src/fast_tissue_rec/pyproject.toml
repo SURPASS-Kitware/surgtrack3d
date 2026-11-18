@@ -31,7 +31,6 @@ depth = [
 ]
 # Volumetric fusion (GPU TSDF + marching cubes). Needs the TSDF CUDA kernel to be built.
 fusion = [
-    "fast_tissue_rec[depth]",
     "pycuda",
     "scikit-image",
     "trimesh",

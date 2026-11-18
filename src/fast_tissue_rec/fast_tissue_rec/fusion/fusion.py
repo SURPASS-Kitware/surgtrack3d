@@ -2,7 +2,6 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
-import fast_tissue_rec.fusion.depth_estimation as depth_estimation
 import fast_tissue_rec.fusion.tsdf_volume as tsdf_volume
 import trimesh
 from tqdm import tqdm
