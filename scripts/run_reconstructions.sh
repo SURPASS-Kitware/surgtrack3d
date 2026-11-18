@@ -1,169 +1,145 @@
 #!/usr/bin/env bash
 #
-# Run the full tissue reconstruction pipeline (tracking -> SLAM -> depth
-# estimation -> fusion) for one or more input videos.
+# Run the full tissue reconstruction pipeline (tracking -> bundle adjustment ->
+# depth estimation -> volumetric fusion) for one or more datasets.
 #
-# For every video the following outputs are produced under
-#   $DATA_ROOT/<scan>/reconstructions/<clip>/
-#     tracking_output/   (ecm_poses.json, tracks/, stereo_index.json,
-#                         slam_poses.json, features.csv)
-#     depth_maps/        (depth_map_index.json + depth maps)
-#     output_mesh_high_res.ply
-#     output_mesh_med_res.ply
+# Expected layout (as released on Zenodo), under $DATA_ROOT:
+#   dataset/raw_data/<dataset>/
+#     calibration.json  ecm_poses.json  left.<ext>  right.<ext>
+#   data_intermediate_outputs/rectified_videos/<dataset>/
+#     left_rect.<ext>  right_rect.<ext>        (ext = mkv or avi)
+#
+# Outputs, under $OUT_DIR/<dataset>/:
+#   tracking_output/   ecm_poses.json, tracks/, images/ (stereo_index.json),
+#                      slam_poses.json, features.csv
+#   depth_maps/        depth_map_index.json + depth_XXX.tiff
+#   output_mesh_high_res.ply
+#   logs/              one log per step
+#
+# Requires fast_tissue_rec[all] (and kinematic_ba) installed in the active
+# Python environment.
 #
 # Usage:
-#   ./run_reconstructions.sh                          # every clip in all scans
-#   ./run_reconstructions.sh scan_26-05-19            # every clip in one scan
-#   ./run_reconstructions.sh scan_26-05-19/kidney_7cm # only that clip
-#   ./run_reconstructions.sh scan_26-05-19/kidney_7cm scan_26-07-07/intestines_10cm
+#   ./run_reconstructions.sh                    # every dataset in raw_data
+#   ./run_reconstructions.sh intestines kidney  # only these datasets
+#
+# Environment overrides:
+#   DATA_ROOT   folder holding dataset/ and data_intermediate_outputs/
+#               (default: the parent folder of this repository)
+#   RAW_DIR     default: $DATA_ROOT/dataset/raw_data
+#   RECT_DIR    default: $DATA_ROOT/data_intermediate_outputs/rectified_videos
+#   OUT_DIR     default: $DATA_ROOT/data_intermediate_outputs/reconstruction
+#   NUM_VOXELS  voxel count used to derive the TSDF voxel size (default 640000000.0)
+#   PYTHON      Python interpreter (default: python)
 #
 set -euo pipefail
 
 # --- Configuration ----------------------------------------------------------
-DATA_ROOT="${DATA_ROOT:-/home/jbarrag3/research/reconstruction_data}"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_ROOT="${DATA_ROOT:-$(dirname "$REPO_DIR")}"
+RAW_DIR="${RAW_DIR:-$DATA_ROOT/dataset/raw_data}"
+RECT_DIR="${RECT_DIR:-$DATA_ROOT/data_intermediate_outputs/rectified_videos}"
+OUT_DIR="${OUT_DIR:-$DATA_ROOT/data_intermediate_outputs/reconstruction}"
+NUM_VOXELS="${NUM_VOXELS:-640000000.0}"
+PYTHON="${PYTHON:-python}"
 
-# Scans processed when no argument is given.
-SCANS=(scan_26-05-19 scan_26-06-09 scan_26-07-07)
+[[ -d "$RAW_DIR" ]]  || { echo "Raw data dir not found: $RAW_DIR" >&2; exit 1; }
+[[ -d "$RECT_DIR" ]] || { echo "Rectified videos dir not found: $RECT_DIR" >&2; exit 1; }
 
-# Location of the run_*.py scripts.
-SCRIPTS="${SCRIPTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/src/fast_tissue_rec/fast_tissue_rec}"
-
-# Global stereo calibration used for all videos.
-CALIBRATION="${CALIBRATION:-$DATA_ROOT/global_calibration/calibration_storz.json}"
-
-# Number of voxels used to derive the TSDF voxel size in fusion.
-HIGH_RES_VOXELS=640000000.0
-MED_RES_VOXELS=320000000.0
-
-# --- Clip selection ---------------------------------------------------------
-# Each item is a "scan/clip" pair, e.g. "scan_26-05-19/kidney_7cm".
-add_scan_clips() {
-    local scan="$1"
-    local videos_dir="$DATA_ROOT/$scan/videos"
-    if [[ ! -d "$videos_dir" ]]; then
-        echo "!! videos dir not found, skipping: $videos_dir" >&2
-        return 0
-    fi
-    local d
-    for d in "$videos_dir"/*/; do
-        [[ -d "$d" ]] && ITEMS+=("$scan/$(basename "$d")")
-    done
-}
-
-ITEMS=()
+# --- Dataset selection ------------------------------------------------------
 if [[ $# -gt 0 ]]; then
-    for arg in "$@"; do
-        # "scan/clip" -> that single clip; "scan" -> every clip in the scan.
-        if [[ "$arg" == */* ]]; then
-            ITEMS+=("$arg")
-        else
-            add_scan_clips "$arg"
-        fi
-    done
+    DATASETS=("$@")
 else
-    for scan in "${SCANS[@]}"; do
-        add_scan_clips "$scan"
+    DATASETS=()
+    for d in "$RAW_DIR"/*/; do
+        [[ -d "$d" ]] && DATASETS+=("$(basename "$d")")
     done
 fi
+[[ ${#DATASETS[@]} -gt 0 ]] || { echo "No datasets selected." >&2; exit 1; }
 
-if [[ ${#ITEMS[@]} -eq 0 ]]; then
-    echo "No clips selected." >&2
-    exit 1
-fi
-
-echo "Scripts dir : $SCRIPTS"
-echo "Data root   : $DATA_ROOT"
-echo "Calibration : $CALIBRATION"
-echo "Clips       : ${ITEMS[*]}"
+echo "Raw data    : $RAW_DIR"
+echo "Rectified   : $RECT_DIR"
+echo "Output      : $OUT_DIR"
+echo "Voxels      : $NUM_VOXELS"
+echo "Datasets    : ${DATASETS[*]}"
 echo
 
 # --- Pipeline ---------------------------------------------------------------
-run_reconstruction() {
-    local item="$1"                     # scan/clip
-    local scan="${item%%/*}"
-    local clip="${item#*/}"
-    local video_dir="$DATA_ROOT/$scan/videos/$clip"
-    local out_dir="$DATA_ROOT/$scan/reconstructions/$clip"
-    local tracking="$out_dir/tracking_output"
-
-    echo "==================================================================="
-    echo ">>> Reconstructing: $scan/$clip"
-    echo "==================================================================="
-
-    if [[ ! -d "$video_dir" ]]; then
-        echo "!! clip dir not found, skipping: $video_dir" >&2
-        return 0
+# Runs one step, logging to $log; prints a short status line.
+run_step() {
+    local name="$1" log="$2"; shift 2
+    local start=$SECONDS
+    if "$@" > "$log" 2>&1; then
+        echo "  [ok]   $name ($((SECONDS - start)) s)"
+    else
+        echo "  [FAIL] $name, see $log" >&2
+        return 1
     fi
+}
 
-    set -x
-    echo "--- [1/5] Tracking ---"
-    ## Cotracker
-    # python "$SCRIPTS/run_tracking.py" \
-    #     --input-dir "$video_dir" \
-    #     --output-dir "$out_dir"
+run_reconstruction() {
+    local ds="$1"
+    local raw="$RAW_DIR/$ds"
+    local rect="$RECT_DIR/$ds"
+    local out="$OUT_DIR/$ds"
+    local tracking="$out/tracking_output"
+    local calib="$raw/calibration.json"
 
-    ## KLT
-    # Detect the rectified video container extension (.mkv or .avi).
+    echo "==================================================================="
+    echo ">>> $ds"
+
+    # Rectified video container extension (.mkv or .avi).
     local ext=""
     for candidate in mkv avi; do
-        if [[ -f "$video_dir/left_rect.$candidate" ]]; then
+        if [[ -f "$rect/left_rect.$candidate" && -f "$rect/right_rect.$candidate" ]]; then
             ext="$candidate"
             break
         fi
     done
     if [[ -z "$ext" ]]; then
-        echo "No left_rect.mkv or left_rect.avi found in $video_dir" >&2
+        echo "  !! no left_rect/right_rect .mkv or .avi in $rect" >&2
         return 1
     fi
+    for f in "$calib" "$raw/ecm_poses.json"; do
+        [[ -f "$f" ]] || { echo "  !! missing $f" >&2; return 1; }
+    done
 
-    python $SCRIPTS/run_tracking.py \
-    -l "$video_dir/left_rect.$ext" \
-    -r "$video_dir/right_rect.$ext"  \
-    -p "$video_dir/ecm_poses.json"  \
-    -o "$tracking"
+    mkdir -p "$out/logs"
 
+    run_step "tracking" "$out/logs/1_tracking.log" \
+        "$PYTHON" -m fast_tissue_rec.run_tracking \
+        -l "$rect/left_rect.$ext" -r "$rect/right_rect.$ext" \
+        -p "$raw/ecm_poses.json" -o "$tracking" || return 1
 
-    echo "--- [2/5] SLAM ---"
-    python "$SCRIPTS/run_slam.py" \
-        -c "$CALIBRATION" \
-        -p "$tracking/ecm_poses.json" \
-        -f "$tracking/tracks/" \
+    run_step "bundle adjustment" "$out/logs/2_ba.log" \
+        "$PYTHON" -m fast_tissue_rec.run_slam -c "$calib" \
+        -p "$tracking/ecm_poses.json" -f "$tracking/tracks/" \
         --poses-output "$tracking/slam_poses.json" \
-        --features-output "$tracking/features.csv"
+        --features-output "$tracking/features.csv" || return 1
 
-    echo "--- [3/5] Depth estimation ---"
-    python "$SCRIPTS/run_depth_estimation.py" \
-        -c "$CALIBRATION" \
+    run_step "depth estimation" "$out/logs/3_depth.log" \
+        "$PYTHON" -m fast_tissue_rec.run_depth_estimation -c "$calib" \
         -s "$tracking/images/stereo_index.json" \
-        --output-dir "$out_dir/depth_maps/"
+        --output-dir "$out/depth_maps/" || return 1
 
-    echo "--- [4/5] Fusion (high res) ---"
-    python "$SCRIPTS/run_fusion.py" \
-        -c "$CALIBRATION" \
+    run_step "volumetric fusion" "$out/logs/4_fusion.log" \
+        "$PYTHON" -m fast_tissue_rec.run_fusion -c "$calib" \
         -s "$tracking/images/stereo_index.json" \
-        -d "$out_dir/depth_maps/depth_map_index.json" \
-        -p "$tracking/slam_poses.json" \
-        -f "$tracking/features.csv" \
-        -n "$HIGH_RES_VOXELS" \
-        -o "$out_dir/output_mesh_high_res.ply"
+        -d "$out/depth_maps/depth_map_index.json" \
+        -p "$tracking/slam_poses.json" -f "$tracking/features.csv" \
+        -n "$NUM_VOXELS" -o "$out/output_mesh_high_res.ply" || return 1
 
-    # echo "--- [5/5] Fusion (med res) ---"
-    # python "$SCRIPTS/run_fusion.py" \
-    #     -c "$CALIBRATION" \
-    #     -s "$tracking/images/stereo_index.json" \
-    #     -d "$out_dir/depth_maps/depth_map_index.json" \
-    #     -p "$tracking/slam_poses.json" \
-    #     -f "$tracking/features.csv" \
-    #     -n "$MED_RES_VOXELS" \
-    #     -o "$out_dir/output_mesh_med_res.ply"
-
-    set +x
-    echo ">>> Done: $scan/$clip"
-    echo
+    echo "  -> $out/output_mesh_high_res.ply"
 }
 
-for item in "${ITEMS[@]}"; do
-    run_reconstruction "$item"
+FAILED=()
+for ds in "${DATASETS[@]}"; do
+    run_reconstruction "$ds" || FAILED+=("$ds")
 done
 
+echo
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+    echo "Failed: ${FAILED[*]}" >&2
+    exit 1
+fi
 echo "All reconstructions complete."

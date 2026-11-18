@@ -146,6 +146,16 @@ To run the entire pipeline, use
 python -m fast_tissue_rec -c ./input_data/calibration.json -l ./input_data/left_rect.avi -r ./input_data/right_rect.avi -p ./input_data/ecm_poses.json -o ./result/output_mesh.ply
 ```
 
+### Batch processing the released datasets
+
+`scripts/` processes the datasets in the layout released on Zenodo (`dataset/raw_data/<dataset>/` and `data_intermediate_outputs/rectified_videos/<dataset>/`). By default both scripts look for these folders in the parent folder of this repository; set `DATA_ROOT` (or `RAW_DIR`, `RECT_DIR`, `OUT_DIR`) to point elsewhere.
+```sh
+./scripts/run_rectification.sh                # raw_data -> rectified_videos (lightweight install is enough)
+./scripts/run_reconstructions.sh              # all datasets: tracking -> BA -> depth -> fusion
+./scripts/run_reconstructions.sh intestines   # a single dataset
+```
+Reconstructions are written to `data_intermediate_outputs/reconstruction/<dataset>/` with one log per step in `logs/`.
+
 ### Running individual steps
 
 Individual steps of the pipeline can be run one at a time for easier analysis and debugging.
@@ -154,7 +164,7 @@ Individual steps of the pipeline can be run one at a time for easier analysis an
    ```sh
    python -m fast_tissue_rec.preprocessing.rectify_stereo_video --calibration input_data/calibration.json --left-video raw/left.mkv --right-video raw/right.mkv --output-dir input_data
    ```
-   This writes `left_rect.mkv` and `right_rect.mkv` to `--output-dir` (or next to the inputs if omitted). The calibration must contain `rect_image_width`/`rect_image_height`. To rectify many clips, see `scripts/run_rectification.sh`.
+   This writes `left_rect.mkv` and `right_rect.mkv` to `--output-dir` (or next to the inputs if omitted). The calibration must contain `rect_image_width`/`rect_image_height`. To rectify all released datasets, see `scripts/run_rectification.sh`.
 
 1. Running feature tracking:
    ```sh

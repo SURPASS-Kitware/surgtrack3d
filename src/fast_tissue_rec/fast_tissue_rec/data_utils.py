@@ -1,7 +1,6 @@
 import csv
 import json
 from collections.abc import Sequence
-from importlib import resources
 from pathlib import Path
 
 import cv2 as cv

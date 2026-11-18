@@ -1,85 +1,91 @@
 #!/usr/bin/env bash
 #
-# Rectify every stereo video pair across the scan datasets using a single
-# global calibration.
+# Rectify the raw stereo videos of one or more datasets.
 #
-# For each videos/<clip>/ subfolder the script looks for a raw stereo pair
-#   left.<ext> / right.<ext>   (ext = mkv or avi)
-# and calls rectify_stereo_video.py, which writes the rectified pair next to
-# the inputs as:
-#   left_rect.<ext> / right_rect.<ext>
+# Expected layout (as released on Zenodo), under $DATA_ROOT:
+#   dataset/raw_data/<dataset>/
+#     calibration.json  left.<ext>  right.<ext>      (ext = mkv or avi)
+#
+# Each pair is rectified with its own calibration.json and written to
+#   $RECT_DIR/<dataset>/left_rect.<ext>  right_rect.<ext>
+#
+# Requires fast_tissue_rec installed in the active Python environment (the core
+# install is enough, no CUDA needed).
 #
 # Usage:
-#   ./run_rectification.sh                 # process every clip in all scans
-#   ./run_rectification.sh scan_26-07-07   # process only the given scan dir(s)
+#   ./run_rectification.sh                    # every dataset in raw_data
+#   ./run_rectification.sh intestines kidney  # only these datasets
+#
+# Environment overrides:
+#   DATA_ROOT   folder holding dataset/ and data_intermediate_outputs/
+#               (default: the parent folder of this repository)
+#   RAW_DIR     default: $DATA_ROOT/dataset/raw_data
+#   RECT_DIR    default: $DATA_ROOT/data_intermediate_outputs/rectified_videos
+#   PYTHON      Python interpreter (default: python)
 #
 set -euo pipefail
 
 # --- Configuration ----------------------------------------------------------
-DATA_ROOT="${DATA_ROOT:-/home/jbarrag3/research/reconstruction_data}"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_ROOT="${DATA_ROOT:-$(dirname "$REPO_DIR")}"
+RAW_DIR="${RAW_DIR:-$DATA_ROOT/dataset/raw_data}"
+RECT_DIR="${RECT_DIR:-$DATA_ROOT/data_intermediate_outputs/rectified_videos}"
+PYTHON="${PYTHON:-python}"
 
-# Global stereo calibration used for every video.
-CALIBRATION="${CALIBRATION:-$DATA_ROOT/global_calibration/calibration_storz.json}"
+[[ -d "$RAW_DIR" ]] || { echo "Raw data dir not found: $RAW_DIR" >&2; exit 1; }
 
-# Location of the rectification script.
-RECTIFY="${RECTIFY:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/src/fast_tissue_rec/fast_tissue_rec/preprocessing/rectify_stereo_video.py}"
-
-# Scan directories to process (override by passing them as arguments).
+# --- Dataset selection ------------------------------------------------------
 if [[ $# -gt 0 ]]; then
-    SCANS=("$@")
+    DATASETS=("$@")
 else
-    SCANS=(scan_26-05-19 scan_26-06-09 scan_26-07-07)
+    DATASETS=()
+    for d in "$RAW_DIR"/*/; do
+        [[ -d "$d" ]] && DATASETS+=("$(basename "$d")")
+    done
 fi
+[[ ${#DATASETS[@]} -gt 0 ]] || { echo "No datasets selected." >&2; exit 1; }
 
-# --- Sanity checks ----------------------------------------------------------
-[[ -f "$CALIBRATION" ]] || { echo "Calibration not found: $CALIBRATION" >&2; exit 1; }
-[[ -f "$RECTIFY" ]]     || { echo "Rectify script not found: $RECTIFY" >&2; exit 1; }
-
-echo "Data root   : $DATA_ROOT"
-echo "Calibration : $CALIBRATION"
-echo "Rectify     : $RECTIFY"
-echo "Scans       : ${SCANS[*]}"
+echo "Raw data    : $RAW_DIR"
+echo "Output      : $RECT_DIR"
+echo "Datasets    : ${DATASETS[*]}"
 echo
 
 # --- Rectification ----------------------------------------------------------
-rectify_clip() {
-    local clip_dir="$1"
+rectify_dataset() {
+    local ds="$1"
+    local raw="$RAW_DIR/$ds"
 
-    # Detect the raw video container extension (.mkv or .avi).
+    # Raw video container extension (.mkv or .avi).
     local ext=""
     for candidate in mkv avi; do
-        if [[ -f "$clip_dir/left.$candidate" && -f "$clip_dir/right.$candidate" ]]; then
+        if [[ -f "$raw/left.$candidate" && -f "$raw/right.$candidate" ]]; then
             ext="$candidate"
             break
         fi
     done
     if [[ -z "$ext" ]]; then
-        echo "  !! skipping (no left/right .mkv or .avi): $clip_dir" >&2
-        return 0
+        echo "  !! skipping $ds (no left/right .mkv or .avi in $raw)" >&2
+        return 1
     fi
+    [[ -f "$raw/calibration.json" ]] || { echo "  !! missing $raw/calibration.json" >&2; return 1; }
 
-    echo "  -> rectifying $clip_dir (.$ext)"
-    python "$RECTIFY" \
-        --calibration "$CALIBRATION" \
-        --left-video "$clip_dir/left.$ext" \
-        --right-video "$clip_dir/right.$ext"
+    echo ">>> $ds (.$ext)"
+    mkdir -p "$RECT_DIR/$ds"
+    "$PYTHON" -m fast_tissue_rec.preprocessing.rectify_stereo_video \
+        --calibration "$raw/calibration.json" \
+        --left-video "$raw/left.$ext" \
+        --right-video "$raw/right.$ext" \
+        --output-dir "$RECT_DIR/$ds"
 }
 
-for scan in "${SCANS[@]}"; do
-    videos_dir="$DATA_ROOT/$scan/videos"
-    if [[ ! -d "$videos_dir" ]]; then
-        echo "!! videos dir not found, skipping: $videos_dir" >&2
-        continue
-    fi
-
-    echo "==================================================================="
-    echo ">>> Scan: $scan"
-    echo "==================================================================="
-    for clip in "$videos_dir"/*/; do
-        [[ -d "$clip" ]] || continue
-        rectify_clip "${clip%/}"
-    done
-    echo
+FAILED=()
+for ds in "${DATASETS[@]}"; do
+    rectify_dataset "$ds" || FAILED+=("$ds")
 done
 
+echo
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+    echo "Failed: ${FAILED[*]}" >&2
+    exit 1
+fi
 echo "All rectifications complete."

@@ -6,7 +6,6 @@ import matplotlib
 matplotlib.use("tkagg")  # See https://github.com/matplotlib/matplotlib/issues/18406
 from pathlib import Path
 
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt

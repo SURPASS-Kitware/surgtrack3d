@@ -2,7 +2,6 @@ import argparse
 import copy
 from pathlib import Path
 
-import numpy as np
 import open3d as o3d
 from tqdm import tqdm
 

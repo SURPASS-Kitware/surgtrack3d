@@ -1,8 +1,6 @@
 import argparse
-import csv
 from pathlib import Path
 
-import numpy as np
 import trimesh
 
 import fast_tissue_rec.data_utils as data_utils

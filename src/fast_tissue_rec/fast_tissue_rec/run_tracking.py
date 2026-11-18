@@ -77,4 +77,4 @@ if __name__ == "__main__":
         Path(args.output),
     )
 
-__all__ = ["track"]
+__all__ = ["main"]
