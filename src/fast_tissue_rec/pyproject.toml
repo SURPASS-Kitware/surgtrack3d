@@ -7,25 +7,44 @@ name = "fast_tissue_rec"
 version = "0.1.0"
 description = "Fast metric 3D tissue reconstruction: feature tracking, stereo depth, and GPU volumetric fusion"
 requires-python = ">=3.10"
-# Pinned versions live in the top-level requirements.txt.
-# tensorrt is not listed: its version must match the one used to build the .engine (see requirements.txt).
+
+# Core: video/calibration I/O, rectification, feature tracking (CPU only).
+# Exact tested versions are in requirements.txt (use it with `pip install -c requirements.txt`).
 dependencies = [
-    "kinematic_ba",
-    "cuda-bindings",
-    "cupy-cuda13x",
-    "imageio",
-    "matplotlib",
     "natsort",
     "numpy",
-    "open3d",
     "opencv-python",
-    "pycuda",
-    "pyyaml",
-    "scikit-image",
     "scipy",
-    "trimesh",
     "tqdm",
 ]
+
+[project.optional-dependencies]
+# Bundle adjustment (run_slam). kinematic_ba is not on PyPI: install ./src/kinematic_ba first.
+ba = ["kinematic_ba"]
+# Stereo depth estimation (TensorRT). The tensorrt version must match the one
+# used to build the FoundationStereo .engine (pinned in requirements.txt).
+depth = [
+    "cuda-bindings",
+    "cupy-cuda13x",
+    "pyyaml",
+    "tensorrt",
+]
+# Volumetric fusion (GPU TSDF + marching cubes). Needs the TSDF CUDA kernel to be built.
+fusion = [
+    "fast_tissue_rec[depth]",
+    "pycuda",
+    "scikit-image",
+    "trimesh",
+]
+# Visualization scripts.
+viz = [
+    "matplotlib",
+    "open3d",
+]
+# Sphinx API docs.
+docs = ["sphinx"]
+# Full pipeline (python -m fast_tissue_rec) + visualization.
+all = ["fast_tissue_rec[ba,depth,fusion,viz]"]
 
 [tool.scikit-build]
 build-dir = "build_python"

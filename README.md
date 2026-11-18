@@ -29,7 +29,6 @@ The pipeline receives recorded stereo video of the robot scanning a region of ti
  - a stereo depth estimation module built on (Fast)FoundationStereo,
  - and a GPU-accelerated volumetric fusion module.
 
-First, monocular video is fed into the tracking module to produce 2D feature tracks. Together with the robot's kinematic estimate of the camera pose for each video frame, these are fed into bundle adjustment to produce a sparse reconstruction of the tissue surface, as well as refined camera poses. The depth estimation module produces RGBD frames, which are used to create a truncated signed-distance field (TSDF) volume representation of the surface. Finally, a colored 3D surface mesh is produced via marching cubes isosurface extraction from the TSDF volume.
 
 ### Repository layout
 
@@ -53,25 +52,35 @@ surgtrack3d/
 
 ## Installation
 
+### Choosing what to install
+
+The code is modular: install only what you need. `fast_tissue_rec` has a small CPU-only core plus optional extras, and the CUDA kernel is only compiled when a CUDA compiler is available.
+
+| You want to run | Install | Needs |
+|---|---|---|
+| Rectification, feature tracking | `fast_tissue_rec` | nothing beyond Python |
+| + bundle adjustment (`run_slam`) | `kinematic_ba` + `fast_tissue_rec[ba]` | vcpkg (C++ build) |
+| + stereo depth estimation | `fast_tissue_rec[depth]` | CUDA 13.2, TensorRT engine |
+| + volumetric fusion | `fast_tissue_rec[fusion]` | CUDA 13.2 (`nvcc`, compiles the TSDF kernel) |
+| + visualization scripts | `fast_tissue_rec[viz]` | — |
+| Full pipeline (`python -m fast_tissue_rec`) | `kinematic_ba` + `fast_tissue_rec[all]` | all of the above |
+
+Extras can be combined, e.g. `fast_tissue_rec[depth,viz]`.
+
+Exact tested versions are kept per package in `src/kinematic_ba/requirements.txt` and `src/fast_tissue_rec/requirements.txt` (the top-level `requirements.txt` includes both). Pass them with `-c` (constraints): pip then pins only the packages your chosen extras actually pull in.
+
 ### Dependencies
 
 This code is built and tested on Ubuntu 24.04, with the system version of Python (3.12) and CUDA v13.2. Newer releases may work.
 
 - **kinematic_ba** needs [vcpkg](https://vcpkg.io) with `VCPKG_ROOT` defined, plus a few system build tools. See [src/kinematic_ba/README.md](src/kinematic_ba/README.md) for the full build instructions.
-- **fast_tissue_rec** needs the CUDA Toolkit v13.2 (for `nvcc` and the CUDA runtime used by cupy/pycuda). TensorRT 11.1 is installed from pip via `requirements.txt`; its version must match the one used to build the FoundationStereo engine (`trtexec` comes with a full TensorRT install, see below).
+- **fast_tissue_rec[depth]** and **[fusion]** need the CUDA Toolkit v13.2 (for `nvcc` and the CUDA runtime used by cupy/pycuda). TensorRT 11.1 is installed from pip; its version must match the one used to build the FoundationStereo engine (`trtexec` comes with a full TensorRT install, see below).
   - [CUDA Installation Guide](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html). Make sure you follow the "Post-installation actions" to update your environment variables.
   - [Installing TensorRT](https://docs.nvidia.com/deeplearning/tensorrt/latest/installing-tensorrt/installing.html). Note that downloading TensorRT unfortunately requires signing up for an NVidia developer account. For TensorRT, only the Debian or Tar installation methods will work easily - the Debian package route is the easiest, but only allows one version of CUDA/TensorRT to be installed. If you already have a conflicting version installed, use the Tar File method to install a different local version. For the Debian package method, on Step 5 make sure you choose the "Full C++ and Python Runtime" option.
 
-Create a virtual environment and install the Python dependencies:
-```sh
-python3 -m venv .venv
-source .venv/bin/activate
-pip3 install -r requirements.txt
-```
-
 #### (Fast) FoundationStereo
 
-We run FoundationStereo via TensorRT. For best performance, the TensorRT engine needs to be optimized for the specific GPU that inference will be run on. You will need to download `fast_foundationstereo.onnx` and `fast_foundationstereo.yaml` from the [PSI OneDrive](https://livejohnshopkins.sharepoint.com/:f:/s/ARPA-HPSI2/IgBLpH8TGMQVRrW2QIjId3vXAeG2d2X0vrdV76U3EqjziJQ?e=wAGVui), and place them in a models directory of your choice.
+Only needed for `fast_tissue_rec[depth]`. We run FoundationStereo via TensorRT. For best performance, the TensorRT engine needs to be optimized for the specific GPU that inference will be run on. You will need to download `fast_foundationstereo.onnx` and `fast_foundationstereo.yaml` from the [PSI OneDrive](https://livejohnshopkins.sharepoint.com/:f:/s/ARPA-HPSI2/IgBLpH8TGMQVRrW2QIjId3vXAeG2d2X0vrdV76U3EqjziJQ?e=wAGVui), and place them in a models directory of your choice.
 
 Run
 ```sh
@@ -79,22 +88,43 @@ trtexec --memPoolSize=workspace:24G --onnx=<models_dir>/fast_foundationstereo.on
 ```
 in order to produce the optimized engine. This may take several minutes to run depending on your GPU.
 
-The engine and YAML config are copied into the `fast_tissue_rec` package at build time, so `<models_dir>` must contain `finetuned_foundation_stereo_32_iters.engine` and `fast_foundationstereo.yaml` (these names are loaded by `fusion/depth_estimation.py`). Point the build at the folder with the CMake cache variable `MODELS_DIR`.
+The engine and YAML config are copied into the `fast_tissue_rec` package at build time, so `<models_dir>` must contain `finetuned_foundation_stereo_32_iters.engine` and `fast_foundationstereo.yaml` (these names are loaded by `fusion/depth_estimation.py`). Point the build at the folder with the CMake cache variable `MODELS_DIR`. If the files are not found, the package still installs, with a warning, and depth estimation is unavailable.
 
 ### Installing the packages
 
-From the repository root, with the venv activated:
+Create a virtual environment:
 ```sh
-pip install ./src/kinematic_ba --no-build-isolation
-pip install ./src/fast_tissue_rec --no-build-isolation \
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+**Lightweight (CPU only, e.g. rectification and tracking):**
+```sh
+pip install ./src/fast_tissue_rec -c src/fast_tissue_rec/requirements.txt
+```
+
+**Full pipeline**, from the repository root:
+```sh
+pip install ./src/kinematic_ba -c src/kinematic_ba/requirements.txt
+pip install "./src/fast_tissue_rec[all]" -c src/fast_tissue_rec/requirements.txt \
     -C cmake.define.MODELS_DIR=<models_dir>
 ```
+
+Build options for `fast_tissue_rec` (pass with `-C cmake.define.<NAME>=<value>`):
+
+| Option | Default | Meaning |
+|---|---|---|
+| `FTR_BUILD_CUDA` | `AUTO` | Build the TSDF CUDA kernel: `AUTO` (if `nvcc` is found), `ON` (required), `OFF` (skip) |
+| `MODELS_DIR` | see `CMakeLists.txt` | Folder with the FoundationStereo engine and YAML config |
+| `TSDF_CUDA_ARCHITECTURES` | `native` | GPU architecture for the TSDF kernel |
+
 The TSDF CUDA kernel is compiled for the GPU in the machine (`native`). On a machine with **different GPU models**, this fails (`Option '--cubin' is not allowed when compiling for multiple GPU code instances`); pass the compute capability (with `-real`) of the GPU used at runtime (CUDA device 0) instead, e.g. `-C cmake.define.TSDF_CUDA_ARCHITECTURES=120-real` for an RTX 5090.
+
 Both packages also support editable installs (`pip install -e <path> --no-build-isolation`); see [src/kinematic_ba/README.md](src/kinematic_ba/README.md#editable-install).
 
 ### Building documentation
 
-You can also build Sphinx documentation for the Python modules. With both packages installed in your venv (plus `sphinx`), run `make html` from `docs/api/`. This will generate the documentation at `docs/api/_build/html/index.html`, which can be opened in a browser.
+You can also build Sphinx documentation for the Python modules. With both packages installed in your venv (plus the `[docs]` extra), run `make html` from `docs/api/`. This will generate the documentation at `docs/api/_build/html/index.html`, which can be opened in a browser.
 
 ## Usage
 
@@ -113,11 +143,17 @@ python -m fast_tissue_rec -c ./input_data/calibration.json -l ./input_data/left_
 
 Individual steps of the pipeline can be run one at a time for easier analysis and debugging.
 
+0. Rectifying raw stereo video (only needs the lightweight install):
+   ```sh
+   python -m fast_tissue_rec.preprocessing.rectify_stereo_video --calibration input_data/calibration.json --left-video raw/left.mkv --right-video raw/right.mkv --output-dir input_data
+   ```
+   This writes `left_rect.mkv` and `right_rect.mkv` to `--output-dir` (or next to the inputs if omitted). The calibration must contain `rect_image_width`/`rect_image_height`. To rectify many clips, see `scripts/run_rectification.sh`.
+
 1. Running feature tracking:
    ```sh
    python $SCRIPTS/run_tracking.py -l input_data/left_rect.mkv -r input_data/right_rect.mkv -p input_data/ecm_poses.json -o tracking_output
    ```
-   This will produce a folder `tracking_output` containing 2D feature tracks in a sub-folder named `tracks`, subsampled stereo video indexed by `stereo_index.json`, and subsampled camera poses in `ecm_poses.json`.
+   This will produce a folder `tracking_output` containing 2D feature tracks in a sub-folder named `tracks`, subsampled stereo frames in `images/` indexed by `images/stereo_index.json`, and subsampled camera poses in `ecm_poses.json`.
 
 2. Running SLAM
     ```sh
@@ -127,13 +163,13 @@ Individual steps of the pipeline can be run one at a time for easier analysis an
 
 3. Running depth estimation
     ```sh
-    python $SCRIPTS/run_depth_estimation.py -c ./input_data/calibration.json -s ./tracking_output/stereo_index.json --output-dir ./depth_maps/
+    python $SCRIPTS/run_depth_estimation.py -c ./input_data/calibration.json -s ./tracking_output/images/stereo_index.json --output-dir ./depth_maps/
     ```
     This will produce the depth maps saved in float32 TIFF format, as well as a JSON "index file" named "depth_map_index.json" in the output directory containing a list of paths to the depth maps. Note: most image viewers can't display 32-bit formats, see depth map visualization below instead.
 
 4. Running volumetric fusion
     ```sh
-    python $SCRIPTS/run_fusion.py -c ./input_data/calibration.json -s ./tracking_output/stereo_index.json -d ./depth_maps/depth_map_index.json -p ./tracking_output/slam_poses.json -f ./tracking_output/features.csv -o ./result/output_mesh.ply
+    python $SCRIPTS/run_fusion.py -c ./input_data/calibration.json -s ./tracking_output/images/stereo_index.json -d ./depth_maps/depth_map_index.json -p ./tracking_output/slam_poses.json -f ./tracking_output/features.csv -o ./result/output_mesh.ply
     ```
     This will produce the final 3D reconstruction as a PLY mesh file.
 
@@ -141,7 +177,7 @@ Individual steps of the pipeline can be run one at a time for easier analysis an
 
 - Visualizing 2D feature tracks compared to projections of 3D features (you must run the individual steps for both feature tracking and SLAM):
   ```sh
-  python $SCRIPTS/visualization/visualize_features_2d.py -c ./input_data/calibration.json -f ./tracking_output/features.csv -p ./tracking_output/slam_poses.json -s ./tracking_output/stereo_index.json -t ./tracking_output/tracks -o ./features_visualization
+  python $SCRIPTS/visualization/visualize_features_2d.py -c ./input_data/calibration.json -f ./tracking_output/features.csv -p ./tracking_output/slam_poses.json -s ./tracking_output/images/stereo_index.json -t ./tracking_output/tracks -o ./features_visualization
   ```
 - Visualizing 3D features (you must run the individual steps for both feature tracking and SLAM):
   ```sh
@@ -159,7 +195,7 @@ Individual steps of the pipeline can be run one at a time for easier analysis an
   ```
 - Visualizing depth maps as 3D point clouds:
   ```sh
-  python $SCRIPTS/visualization/visualize_depth_clouds.py -d ./depth_maps/depth_map_index.json -s ./tracking_output/stereo_index.json -c ./input_data/calibration.json -p ./tracking_output/slam_poses.json -o ./depth_maps
+  python $SCRIPTS/visualization/visualize_depth_clouds.py -d ./depth_maps/depth_map_index.json -s ./tracking_output/images/stereo_index.json -c ./input_data/calibration.json -p ./tracking_output/slam_poses.json -o ./depth_maps
   ```
   This will produce a separate PLY file for each frame, which can be viewed in Meshlab. Make sure to set the point shading to "None" to properly view the colors. The point clouds are registered in the world/robot frame, so you can easily view multiple of them simultaneously.
 

@@ -1,0 +1,10 @@
+# Exact tested versions for kinematic_ba.
+# Install:  pip install ./src/kinematic_ba -c src/kinematic_ba/requirements.txt
+
+# Runtime
+numpy==2.5.0
+
+# Build tools (only needed for --no-build-isolation / editable installs)
+build==1.5
+pybind11==3.1.0
+scikit-build-core==0.12.2

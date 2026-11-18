@@ -22,7 +22,7 @@ DATA_ROOT="${DATA_ROOT:-/home/jbarrag3/research/reconstruction_data}"
 CALIBRATION="${CALIBRATION:-$DATA_ROOT/global_calibration/calibration_storz.json}"
 
 # Location of the rectification script.
-RECTIFY="${RECTIFY:-/home/jbarrag3/research/surpass_mosaic_video_tracker/rectify_stereo_video.py}"
+RECTIFY="${RECTIFY:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/src/fast_tissue_rec/fast_tissue_rec/preprocessing/rectify_stereo_video.py}"
 
 # Scan directories to process (override by passing them as arguments).
 if [[ $# -gt 0 ]]; then

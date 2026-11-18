@@ -1,0 +1,33 @@
+# Exact tested versions for fast_tissue_rec, grouped by extra (see pyproject.toml).
+# Use as constraints so only the packages your extras need get installed, e.g.
+#   pip install "./src/fast_tissue_rec[depth]" -c src/fast_tissue_rec/requirements.txt
+
+# core
+natsort==8.4.0
+numpy==2.5.0
+opencv-python==4.13.0.92
+scipy==1.16
+tqdm==4.68.2
+
+# [depth]
+cuda-bindings==13.0.3
+cupy-cuda13x==13.6.0
+PyYAML==6.0.3
+# Must match the TensorRT version used to build the FoundationStereo .engine
+tensorrt==11.1.0.106
+
+# [fusion]
+pycuda==2026.1
+scikit-image==0.26.0
+trimesh==4.12.2
+
+# [viz]
+matplotlib==3.11
+open3d==0.19.0
+
+# [docs]
+Sphinx==9.1.0
+
+# Build tools (only needed for --no-build-isolation / editable installs)
+build==1.5
+scikit-build-core==0.12.2

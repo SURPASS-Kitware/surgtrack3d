@@ -9,6 +9,15 @@ import numpy.typing as npt
 from pathlib import Path
 import scipy.spatial.transform as tr
 
+# Minimum number of digits in per-frame output file names (points_000.csv, left_000.png,
+# depth_000.tiff). Widened automatically if there are more frames than this allows.
+FILE_INDEX_MIN_DIGITS = 3
+
+
+def _index_digits(count: int) -> int:
+    return max(FILE_INDEX_MIN_DIGITS, len(str(count)))
+
+
 def save_array_json(path, array, header):
     data = {
         "header": header,
@@ -73,7 +82,7 @@ def save_camera_poses(
 def save_feature_observations(
     tracks_csv_folder: Path, feature_observations: list[npt.NDArray[np.float32]]
 ):
-    frames_idx_len = len(str(len(feature_observations)))
+    frames_idx_len = _index_digits(len(feature_observations))
     for idx, frame in enumerate(feature_observations):
         with open(
             tracks_csv_folder / f"points_{str(idx).zfill(frames_idx_len)}.csv",
@@ -223,7 +232,7 @@ def save_stereo_images(
     # determine how many leading zeros we need to pad to, so that all file names have same
     # total number of digits
     total_count = len(frames)
-    count_len = len(str(total_count))
+    count_len = _index_digits(total_count)
 
     output_dir = output_file.parent
 
@@ -252,8 +261,9 @@ def save_depth_maps(
 
     output_dir.mkdir(exist_ok=True, parents=True)
 
+    count_len = _index_digits(len(depth_maps))
     for idx, depth_map in enumerate(depth_maps):
-        file_path = output_dir / f"depth_{idx}.tiff"
+        file_path = output_dir / f"depth_{str(idx).zfill(count_len)}.tiff"
         index.append(file_path)
         cv.imwrite(str(file_path), depth_map)
 

@@ -13,7 +13,8 @@ def main(camera_calibration_file: Path, stereo_index: Path, output_dir: Path):
     downsample = stereo_utils.ImageDownsampler.square(camera_calibration, (1920, 1080), 512)
     
     camera_matrix = stereo_utils.left_camera_matrix(downsample.calibration)
-    data_utils.save_array_json(Path(args.output_dir) / "downsampled_camera_matrix.json", camera_matrix, "downsampled_left_cam") 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    data_utils.save_array_json(output_dir / "downsampled_camera_matrix.json", camera_matrix, "downsampled_left_cam")
 
     stereo_pairs = data_utils.load_stereo_images(stereo_index)
     stereo_pairs = [
