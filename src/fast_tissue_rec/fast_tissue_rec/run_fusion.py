@@ -1,11 +1,13 @@
-import csv
-import numpy as np
 import argparse
+import csv
 from pathlib import Path
-import fast_tissue_rec.fusion.fusion as fusion
-import fast_tissue_rec.data_utils as data_utils
-import fast_tissue_rec.stereo_utils as stereo_utils
+
+import numpy as np
 import trimesh
+
+import fast_tissue_rec.data_utils as data_utils
+import fast_tissue_rec.fusion.fusion as fusion
+import fast_tissue_rec.stereo_utils as stereo_utils
 
 
 def main(

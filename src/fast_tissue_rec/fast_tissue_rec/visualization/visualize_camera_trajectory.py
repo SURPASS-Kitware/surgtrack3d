@@ -1,17 +1,16 @@
 import argparse
 import copy
+from pathlib import Path
+
 import numpy as np
 import open3d as o3d
-from pathlib import Path
 from tqdm import tqdm
 
 import fast_tissue_rec.data_utils as data_utils
 
 
 def save_camera_trajectory_visualization(
-    camera_poses,
-    axlen: float = 0.005,
-    output_file: Path="trajectory.ply"
+    camera_poses, axlen: float = 0.005, output_file: Path = "trajectory.ply"
 ):
     trajectory = None
     for i, pose in enumerate(tqdm(camera_poses)):

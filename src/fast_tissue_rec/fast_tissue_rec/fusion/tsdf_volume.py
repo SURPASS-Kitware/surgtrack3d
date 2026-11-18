@@ -3,7 +3,6 @@ import importlib
 import numpy as np
 import numpy.typing as npt
 import pycuda.autoinit
-
 import pycuda.driver as cuda
 import pycuda.gpuarray as gpuarray
 import skimage
@@ -45,9 +44,9 @@ class TSDFVolume:
         self._color_volume_gpu = cuda.mem_alloc(self._color_volume_cpu.nbytes)
         cuda.memcpy_htod(self._color_volume_gpu, self._color_volume_cpu)
 
-        kernel_path = importlib.resources.files(
-            "fast_tissue_rec.resources"
-        ).joinpath("tsdf_kernel.cubin")
+        kernel_path = importlib.resources.files("fast_tissue_rec.resources").joinpath(
+            "tsdf_kernel.cubin"
+        )
         self._kernel_module = cuda.module_from_file(str(kernel_path))
         self._integrate = self._kernel_module.get_function("integrate")
 
@@ -86,10 +85,12 @@ class TSDFVolume:
         depth_image: npt.NDArray[np.float32],
         camera_matrix: npt.NDArray,
         camera_pose: npt.NDArray,
-        min_depth: float=1.0e-3,
-        sample_weight: float=1.0,
+        min_depth: float = 1.0e-3,
+        sample_weight: float = 1.0,
     ):
-        assert depth_image.shape[0:2] == color_image.shape[0:2], "Depth and color images have have same size for fusion"
+        assert (
+            depth_image.shape[0:2] == color_image.shape[0:2]
+        ), "Depth and color images have have same size for fusion"
 
         # integrate voxel volume (calls CUDA kernel)
         for gpu_loop_idx in range(self._n_gpu_loops):
@@ -132,7 +133,11 @@ class TSDFVolume:
         mask = weight_volume > 0.0
 
         vertices, faces, normals, values = skimage.measure.marching_cubes(
-            tsdf_volume, level=0.0, gradient_direction="ascent", allow_degenerate=False, mask=mask
+            tsdf_volume,
+            level=0.0,
+            gradient_direction="ascent",
+            allow_degenerate=False,
+            mask=mask,
         )
 
         vertex_indices = np.round(vertices).astype(int)
@@ -148,7 +153,12 @@ class TSDFVolume:
         vertex_colors = np.flip(vertex_colors, axis=1)
 
         # skimage will include faces even if only one vertex is valid
-        valid_vertices = weight_volume[vertex_indices[:, 0], vertex_indices[:, 1], vertex_indices[:, 2]] > 0
+        valid_vertices = (
+            weight_volume[
+                vertex_indices[:, 0], vertex_indices[:, 1], vertex_indices[:, 2]
+            ]
+            > 0
+        )
         valid_faces_mask = valid_vertices[faces].all(axis=1)
         # skiamge uses left-hand rule, so we also reverse triangle winding order to match right-hand rule
         clean_faces = faces[valid_faces_mask, ::-1]

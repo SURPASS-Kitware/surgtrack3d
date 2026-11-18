@@ -1,8 +1,9 @@
 import argparse
+import sys
+from pathlib import Path
+
 import numpy as np
 import numpy.typing as npt
-from pathlib import Path
-import sys
 
 import fast_tissue_rec.data_utils as data_utils
 import fast_tissue_rec.stereo_utils as stereo_utils

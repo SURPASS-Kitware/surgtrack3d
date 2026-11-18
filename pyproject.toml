@@ -1,0 +1,16 @@
+# Repository-wide tool configuration only. The installable packages have their own
+# pyproject.toml files in src/kinematic_ba and src/fast_tissue_rec.
+#
+#   black .  &&  isort .
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+extend-exclude = "build_python/"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["fast_tissue_rec", "kinematic_ba"]
+skip_gitignore = true
+extend_skip_glob = ["**/build_python/**"]

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+
 import cv2 as cv
 import numpy as np
 import numpy.typing as npt

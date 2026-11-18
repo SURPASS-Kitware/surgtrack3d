@@ -22,12 +22,16 @@ import numpy as np
 
 def get_rect_image_size(lc):
     """Returns (width, height) for the rectified output image.
-    Uses rect_image_width/height if present, otherwise falls back to image_width/height."""
+    Uses rect_image_width/height if present, otherwise falls back to image_width/height.
+    """
     w = int(lc.get("rect_image_width", lc["image_width"]))
     h = int(lc.get("rect_image_height", lc["image_height"]))
     return w, h
 
-def compute_rectification(cam: dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+def compute_rectification(
+    cam: dict,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Returns (R1, R2, P1, P2).
 
@@ -110,14 +114,20 @@ def _add_rect_suffix(path: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Rectify a stereo video pair using calibration JSON.")
+    parser = argparse.ArgumentParser(
+        description="Rectify a stereo video pair using calibration JSON."
+    )
     parser.add_argument(
         "--calibration",
         required=True,
         help="Path to stereo calibration JSON (contains intrinsics/distortion and rectification/projection or R/T).",
     )
-    parser.add_argument("--left-video", required=True, help="Path to the left (unrectified) video.")
-    parser.add_argument("--right-video", required=True, help="Path to the right (unrectified) video.")
+    parser.add_argument(
+        "--left-video", required=True, help="Path to the left (unrectified) video."
+    )
+    parser.add_argument(
+        "--right-video", required=True, help="Path to the right (unrectified) video."
+    )
     parser.add_argument(
         "--output-dir",
         default=None,
@@ -136,8 +146,10 @@ def main() -> int:
     with open(args.calibration, "r", encoding="utf-8") as f:
         cam = json.load(f)
 
-    assert "rect_image_width" in cam["left_camera"], ("Rectify rect_image_width and rect_image_height needs to be specified" + 
-                                                      "for new UR ROBOT setup, comment this line if rectifying older data.")
+    assert "rect_image_width" in cam["left_camera"], (
+        "Rectify rect_image_width and rect_image_height needs to be specified"
+        + "for new UR ROBOT setup, comment this line if rectifying older data."
+    )
 
     rect_image_width, rect_image_height = get_rect_image_size(cam["left_camera"])
 
@@ -159,7 +171,12 @@ def main() -> int:
         (rect_image_width, rect_image_height),
         cv2.CV_32FC1,
     )
-    if left_map1 is None or left_map2 is None or right_map1 is None or right_map2 is None:
+    if (
+        left_map1 is None
+        or left_map2 is None
+        or right_map1 is None
+        or right_map2 is None
+    ):
         raise RuntimeError("Could not create rectification LUTs.")
 
     left_cap = cv2.VideoCapture(left_video_path)
@@ -195,8 +212,12 @@ def main() -> int:
             if not ok_l or not ok_r:
                 break
 
-            frame_left_rectified = cv2.remap(frame_left, left_map1, left_map2, cv2.INTER_LINEAR)
-            frame_right_rectified = cv2.remap(frame_right, right_map1, right_map2, cv2.INTER_LINEAR)
+            frame_left_rectified = cv2.remap(
+                frame_left, left_map1, left_map2, cv2.INTER_LINEAR
+            )
+            frame_right_rectified = cv2.remap(
+                frame_right, right_map1, right_map2, cv2.INTER_LINEAR
+            )
 
             if args.show_frame_id:
                 label = str(frame_idx)
@@ -260,4 +281,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

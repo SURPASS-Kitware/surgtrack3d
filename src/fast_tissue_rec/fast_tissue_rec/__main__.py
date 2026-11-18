@@ -1,12 +1,14 @@
 import argparse
 from pathlib import Path
+
+import trimesh
+
 import fast_tissue_rec.data_utils as data_utils
+import fast_tissue_rec.fusion.depth_estimation as depth_estimation
+import fast_tissue_rec.fusion.fusion as fusion
 import fast_tissue_rec.stereo_utils as stereo_utils
 from fast_tissue_rec.run_slam import run_slam
 from fast_tissue_rec.tracker import track
-import fast_tissue_rec.fusion.fusion as fusion
-import fast_tissue_rec.fusion.depth_estimation as depth_estimation
-import trimesh
 
 
 def run_reconstruction(

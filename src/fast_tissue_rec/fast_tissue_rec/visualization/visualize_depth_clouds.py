@@ -1,12 +1,13 @@
 import argparse
+import json
 from collections.abc import Sequence
+from pathlib import Path
+
 import cv2 as cv
 import numpy as np
 import numpy.typing as npt
 import open3d as o3d
-from pathlib import Path
 from tqdm import tqdm
-import json
 
 import fast_tissue_rec.data_utils as data_utils
 import fast_tissue_rec.stereo_utils as stereo_utils
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-o", "--output-dir", required=True)
     args = parser.parse_args()
-    
+
     camera_calibration = data_utils.load_camera_calibration(
         Path(args.camera_calibration)
     )
@@ -69,7 +70,11 @@ if __name__ == "__main__":
     )
     camera_matrix = stereo_utils.left_camera_matrix(downsample.calibration)
 
-    data_utils.save_array_json(Path(args.output_dir) / "downsampled_camera_matrix.json", camera_matrix, "downsampled_left_cam") 
+    data_utils.save_array_json(
+        Path(args.output_dir) / "downsampled_camera_matrix.json",
+        camera_matrix,
+        "downsampled_left_cam",
+    )
 
     print("Loading depth maps...")
     depth_maps = data_utils.load_depth_maps(Path(args.depth_index))

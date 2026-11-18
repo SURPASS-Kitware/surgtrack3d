@@ -1,6 +1,7 @@
 import argparse
-import open3d as o3d
 from pathlib import Path
+
+import open3d as o3d
 
 import fast_tissue_rec.data_utils as data_utils
 
@@ -8,7 +9,7 @@ import fast_tissue_rec.data_utils as data_utils
 def save_features_3d_visualization(
     output_file: Path, features: dict[int, tuple[float, float]]
 ):
-    feature_points = [ point for id, point in features.items() ]
+    feature_points = [point for id, point in features.items()]
 
     pcd = o3d.geometry.PointCloud()
     print(f"Saving point cloud as {output_file}...")

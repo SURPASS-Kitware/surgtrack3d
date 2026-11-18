@@ -1,8 +1,9 @@
 import argparse
+from pathlib import Path
+
 import cv2 as cv
 import numpy as np
 import numpy.typing as npt
-from pathlib import Path
 from tqdm import tqdm
 
 import fast_tissue_rec.data_utils as data_utils

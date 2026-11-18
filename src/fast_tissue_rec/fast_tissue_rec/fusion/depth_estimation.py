@@ -11,8 +11,9 @@ import numpy.typing as npt
 import tensorrt as trt
 import yaml
 from cuda.bindings import runtime as cudart
-from fast_tissue_rec import stereo_utils
 from tqdm import tqdm
+
+from fast_tissue_rec import stereo_utils
 
 
 class TRTStereoEngine:
@@ -63,12 +64,12 @@ class TRTStereoEngine:
 
     @staticmethod
     def load(camera_calibration: dict) -> typing.Self:
-        model_path = importlib.resources.files(
-            "fast_tissue_rec.resources"
-        ).joinpath("finetuned_foundation_stereo_32_iters.engine")
-        config_path = importlib.resources.files(
-            "fast_tissue_rec.resources"
-        ).joinpath("fast_foundationstereo.yaml")
+        model_path = importlib.resources.files("fast_tissue_rec.resources").joinpath(
+            "finetuned_foundation_stereo_32_iters.engine"
+        )
+        config_path = importlib.resources.files("fast_tissue_rec.resources").joinpath(
+            "fast_foundationstereo.yaml"
+        )
         # model_path = importlib.resources.files(
         #     "fast_tissue_rec.resources"
         # ).joinpath("fastfs_v7_ep6_1920x1056_fp16.engine")
@@ -192,4 +193,3 @@ def stereo_images_to_depth_maps(
     depth_estimator.release()
 
     return depth_maps
-

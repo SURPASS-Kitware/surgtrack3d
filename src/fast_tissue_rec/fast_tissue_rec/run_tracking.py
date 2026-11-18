@@ -1,6 +1,7 @@
 import argparse
 import os
 from pathlib import Path
+
 import fast_tissue_rec.data_utils as data_utils
 import fast_tissue_rec.tracker as tracker
 

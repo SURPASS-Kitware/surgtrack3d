@@ -1,7 +1,8 @@
+from typing import Self
+
 import cv2 as cv
 import numpy as np
 import numpy.typing as npt
-from typing import Self
 
 
 def left_camera_matrix(camera_calibration: dict) -> npt.NDArray[np.float32]:
@@ -10,9 +11,7 @@ def left_camera_matrix(camera_calibration: dict) -> npt.NDArray[np.float32]:
     return projection
 
 
-def get_stereo_baseline(
-    camera_calibration: dict
-) -> float:
+def get_stereo_baseline(camera_calibration: dict) -> float:
     """Get stereo baseline from camera calibration"""
     projection_matrix = np.array(camera_calibration["right_camera"]["projection"])
 
@@ -38,7 +37,9 @@ def depth_from_disparity(
 
 class ImageDownsampler:
     @staticmethod
-    def square(camera_calibration: dict, in_size: tuple[float, float], out_size: float) -> Self:
+    def square(
+        camera_calibration: dict, in_size: tuple[float, float], out_size: float
+    ) -> Self:
         in_width, in_height = in_size
         square_size = min(in_width, in_height)
         start_x = (in_width - square_size) // 2
@@ -49,15 +50,26 @@ class ImageDownsampler:
 
         return ImageDownsampler(camera_calibration, crop_x, crop_y, out_size, out_size)
 
-    def __init__(self, camera_calibration: dict, crop_x: tuple[float, float], crop_y: tuple[float, float], out_width: float, out_height: float):
+    def __init__(
+        self,
+        camera_calibration: dict,
+        crop_x: tuple[float, float],
+        crop_y: tuple[float, float],
+        out_width: float,
+        out_height: float,
+    ):
         self.crop_x = crop_x
         self.crop_y = crop_y
         self.out_width = out_width
         self.out_height = out_height
 
         self.calibration = {
-            "left_camera": self._downsample_calibration(camera_calibration["left_camera"]),
-            "right_camera": self._downsample_calibration(camera_calibration["right_camera"]),
+            "left_camera": self._downsample_calibration(
+                camera_calibration["left_camera"]
+            ),
+            "right_camera": self._downsample_calibration(
+                camera_calibration["right_camera"]
+            ),
         }
 
     def _crop_calibration(self, camera_matrix: npt.NDArray) -> npt.NDArray:
@@ -66,11 +78,13 @@ class ImageDownsampler:
         cropped[1][2] -= self.crop_y[0]
         return cropped
 
-    def _scale_calibration(self, scale_x: float, scale_y: float, camera_matrix: npt.NDArray) -> npt.NDArray:
+    def _scale_calibration(
+        self, scale_x: float, scale_y: float, camera_matrix: npt.NDArray
+    ) -> npt.NDArray:
         scaled = camera_matrix.copy()
         scaled[0, :] *= scale_x
         scaled[1, :] *= scale_y
-        return scaled        
+        return scaled
 
     def _downsample_calibration(self, calibration: dict) -> dict:
         scale_x = self.out_width / (self.crop_x[1] - self.crop_x[0])
@@ -94,6 +108,10 @@ class ImageDownsampler:
         return output_calibration
 
     def __call__(self, image):
-        cropped = image[self.crop_y[0]:self.crop_y[1], self.crop_x[0]:self.crop_x[1]]
-        scaled = cv.resize(cropped, (self.out_width, self.out_height), interpolation=cv.INTER_AREA)
+        cropped = image[
+            self.crop_y[0] : self.crop_y[1], self.crop_x[0] : self.crop_x[1]
+        ]
+        scaled = cv.resize(
+            cropped, (self.out_width, self.out_height), interpolation=cv.INTER_AREA
+        )
         return scaled

@@ -2,9 +2,10 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
-import fast_tissue_rec.fusion.tsdf_volume as tsdf_volume
 import trimesh
 from tqdm import tqdm
+
+import fast_tissue_rec.fusion.tsdf_volume as tsdf_volume
 
 
 class DepthScaling:
@@ -43,7 +44,7 @@ class DepthScaling:
             point2d, sparse_depth = self.point_depth(camera_pose, point)
             if sparse_depth is None:
                 continue
-            
+
             if point2d[0] < 0 or point2d[0] >= W or point2d[1] < 0 or point2d[1] >= H:
                 continue
 
@@ -115,8 +116,12 @@ def depth_fusion(
     num_voxels: float = 320000000.0,
     verbose: bool = True,
 ) -> trimesh.Trimesh:
-    assert len(depth_maps) == len(stereo_pairs), "Must have same number of depth maps as stereo pairs"
-    assert len(depth_maps) == len(poses), "Must have same number of depth maps as camera poses"
+    assert len(depth_maps) == len(
+        stereo_pairs
+    ), "Must have same number of depth maps as stereo pairs"
+    assert len(depth_maps) == len(
+        poses
+    ), "Must have same number of depth maps as camera poses"
 
     print("Estimating volume bounds ...")
     volume_bounds = [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan]]
@@ -156,7 +161,9 @@ def depth_fusion(
 
     print("Integrating depth images...")
 
-    for depth_map, (left_image, _), pose in zip(tqdm(scaled_depth_maps), stereo_pairs, poses):
+    for depth_map, (left_image, _), pose in zip(
+        tqdm(scaled_depth_maps), stereo_pairs, poses
+    ):
         volume.integrate(left_image, depth_map, camera_matrix, pose)
 
     print("Transferring volume to CPU...")

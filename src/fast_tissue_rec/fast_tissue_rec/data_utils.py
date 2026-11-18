@@ -1,13 +1,14 @@
-from collections.abc import Sequence
 import csv
-import cv2 as cv
-from importlib import resources
 import json
-from natsort import natsorted
+from collections.abc import Sequence
+from importlib import resources
+from pathlib import Path
+
+import cv2 as cv
 import numpy as np
 import numpy.typing as npt
-from pathlib import Path
 import scipy.spatial.transform as tr
+from natsort import natsorted
 
 # Minimum number of digits in per-frame output file names (points_000.csv, left_000.png,
 # depth_000.tiff). Widened automatically if there are more frames than this allows.
@@ -27,6 +28,7 @@ def save_array_json(path, array, header):
     }
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
+
 
 def load_camera_calibration(calibration_file: Path) -> dict:
     """Load stereo camera calibration from JSON file"""
@@ -294,5 +296,5 @@ __all__ = [
     "load_stereo_images",
     "save_stereo_images",
     "save_depth_maps",
-    "load_depth_maps"
+    "load_depth_maps",
 ]

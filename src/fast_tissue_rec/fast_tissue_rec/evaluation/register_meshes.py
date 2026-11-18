@@ -30,6 +30,7 @@ results are bit-for-bit reproducible regardless of worker scheduling.
 
 Everything is measured in the TARGET's metric scale.
 """
+
 import argparse
 import copy
 import os
@@ -91,7 +92,9 @@ def global_ransac(src_down, tgt_down, src_fpfh, tgt_fpfh, voxel):
         tgt_fpfh,
         mutual_filter=True,
         max_correspondence_distance=dist,
-        estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
+        estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(
+            False
+        ),
         ransac_n=3,
         checkers=[
             o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
@@ -119,6 +122,7 @@ def refine_icp(src_down, tgt_down, init_T, voxel):
 def render_overlay(tgt_pcd, src_pcd_aligned, out_path, n=25_000):
     """Render target and aligned-source point clouds superimposed, multi-view PNG."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -135,10 +139,24 @@ def render_overlay(tgt_pcd, src_pcd_aligned, out_path, n=25_000):
     fig = plt.figure(figsize=(15, 5))
     for i, ((elev, azim), title) in enumerate(zip(views, titles)):
         ax = fig.add_subplot(1, 3, i + 1, projection="3d")
-        ax.scatter(T[:, 0], T[:, 1], T[:, 2], s=0.4, c="#1f77b4",
-                   alpha=0.35, label="target (reference)")
-        ax.scatter(S[:, 0], S[:, 1], S[:, 2], s=0.4, c="#d62728",
-                   alpha=0.35, label="aligned source")
+        ax.scatter(
+            T[:, 0],
+            T[:, 1],
+            T[:, 2],
+            s=0.4,
+            c="#1f77b4",
+            alpha=0.35,
+            label="target (reference)",
+        )
+        ax.scatter(
+            S[:, 0],
+            S[:, 1],
+            S[:, 2],
+            s=0.4,
+            c="#d62728",
+            alpha=0.35,
+            label="aligned source",
+        )
         ax.view_init(elev=elev, azim=azim)
         ax.set_title(title)
         ax.set_box_aspect((1, 1, 1))
@@ -158,6 +176,7 @@ def render_distance_heatmap(src_aligned, tgt_pcd, out_path, n=120_000):
     """Top view of the aligned source only, each point colored by distance to the
     nearest reference point (turbo colormap)."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from scipy.spatial import cKDTree
@@ -171,18 +190,30 @@ def render_distance_heatmap(src_aligned, tgt_pcd, out_path, n=120_000):
     fig, ax = plt.subplots(figsize=(8, 7))
     # top view = look down z: plot x vs y
     vmax = np.percentile(dist, 99)  # clip outliers so the scale stays readable
-    sc = ax.scatter(S[:, 0], S[:, 1], c=dist * 1000.0, s=1.0, cmap="turbo",
-                    vmin=0.0, vmax=vmax * 1000.0)
+    sc = ax.scatter(
+        S[:, 0],
+        S[:, 1],
+        c=dist * 1000.0,
+        s=1.0,
+        cmap="turbo",
+        vmin=0.0,
+        vmax=vmax * 1000.0,
+    )
     ax.set_aspect("equal")
     ax.set_title("Aligned source — distance to nearest reference point (top view)")
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     cb = fig.colorbar(sc, ax=ax)
     cb.set_label("distance to reference (mm)")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-    return dict(mean_mm=float(dist.mean() * 1000), median_mm=float(np.median(dist) * 1000),
-                p95_mm=float(np.percentile(dist, 95) * 1000), max_mm=float(dist.max() * 1000))
+    return dict(
+        mean_mm=float(dist.mean() * 1000),
+        median_mm=float(np.median(dist) * 1000),
+        p95_mm=float(np.percentile(dist, 95) * 1000),
+        max_mm=float(dist.max() * 1000),
+    )
 
 
 def scale_about_centroid(pcd, s, centroid):
@@ -223,17 +254,32 @@ def _sweep_candidate(task):
     src.scale(scale, center=_G["src_centroid"])
     src_down, src_fpfh = preprocess(src, _G["voxel"])
     res = global_ransac(src_down, _G["tgt_down"], src_fpfh, _G["tgt_fpfh"], _G["voxel"])
-    return dict(scale=float(scale), fitness=res.fitness, rmse=res.inlier_rmse,
-                T=np.asarray(res.transformation).copy())
+    return dict(
+        scale=float(scale),
+        fitness=res.fitness,
+        rmse=res.inlier_rmse,
+        T=np.asarray(res.transformation).copy(),
+    )
 
 
 # --------------------------------------------------------------------------- #
 # Main driver
 # --------------------------------------------------------------------------- #
-def register(source_path, target_path, out_dir,
-             n_sample=80_000, voxel_frac=1 / 55, scale_span=(0.55, 1.6),
-             n_scale_steps=13, scale_range=None, jobs=None,
-             seed=0, save_mesh=True, make_overlay=True, verbose=True):
+def register(
+    source_path,
+    target_path,
+    out_dir,
+    n_sample=80_000,
+    voxel_frac=1 / 55,
+    scale_span=(0.55, 1.6),
+    n_scale_steps=13,
+    scale_range=None,
+    jobs=None,
+    seed=0,
+    save_mesh=True,
+    make_overlay=True,
+    verbose=True,
+):
     os.makedirs(out_dir, exist_ok=True)
 
     # Seed both RNGs (Open3D RANSAC/sampling and NumPy point subsampling) so a
@@ -273,13 +319,19 @@ def register(source_path, target_path, out_dir,
     if scale_range is not None:
         lo, hi = scale_range
         candidates = np.linspace(lo, hi, n_scale_steps)
-        vp(f"\nSweeping {len(candidates)} candidate scales in absolute range "
-           f"[{lo:.3f} .. {hi:.3f}] ...")
+        vp(
+            f"\nSweeping {len(candidates)} candidate scales in absolute range "
+            f"[{lo:.3f} .. {hi:.3f}] ..."
+        )
     else:
-        candidates = base_scale * np.linspace(scale_span[0], scale_span[1], n_scale_steps)
-        vp(f"\nSweeping {len(candidates)} candidate scales "
-           f"[{candidates.min():.3f} .. {candidates.max():.3f}] "
-           f"(bbox-ratio x [{scale_span[0]}..{scale_span[1]}]) ...")
+        candidates = base_scale * np.linspace(
+            scale_span[0], scale_span[1], n_scale_steps
+        )
+        vp(
+            f"\nSweeping {len(candidates)} candidate scales "
+            f"[{candidates.min():.3f} .. {candidates.max():.3f}] "
+            f"(bbox-ratio x [{scale_span[0]}..{scale_span[1]}]) ..."
+        )
 
     # ---- parallel scale sweep: prescale + FPFH + RANSAC per candidate ----
     # Each candidate is independent and seeded deterministically (seed + index),
@@ -296,12 +348,14 @@ def register(source_path, target_path, out_dir,
     if jobs > 1:
         import multiprocessing
         from concurrent.futures import ProcessPoolExecutor
+
         vp(f"  running sweep on {jobs} parallel workers")
         # "spawn", not the Linux default "fork": the parent has already run
         # Open3D (thread pools), and forked children can inherit a held lock and
         # deadlock forever.
         with ProcessPoolExecutor(
-            max_workers=jobs, mp_context=multiprocessing.get_context("spawn"),
+            max_workers=jobs,
+            mp_context=multiprocessing.get_context("spawn"),
             initializer=_sweep_init,
             initargs=(src_pts, src_centroid, tgt_pts, voxel),
         ) as ex:
@@ -311,7 +365,9 @@ def register(source_path, target_path, out_dir,
         results = [_sweep_candidate(t) for t in tasks]
 
     for r in results:
-        vp(f"  scale={r['scale']:6.3f}  fitness={r['fitness']:.3f}  rmse={r['rmse']:.5f}")
+        vp(
+            f"  scale={r['scale']:6.3f}  fitness={r['fitness']:.3f}  rmse={r['rmse']:.5f}"
+        )
     best = max(results, key=lambda r: r["fitness"])
 
     vp(f"\nBest coarse: scale={best['scale']:.4f} fitness={best['fitness']:.3f}")
@@ -338,14 +394,21 @@ def register(source_path, target_path, out_dir,
     T_final = T_coarse
     for thr_mult in (3.0, 1.5, 0.75):
         poly = o3d.pipelines.registration.registration_icp(
-            src_fine, tgt_fine, fine_voxel * thr_mult, T_final,
-            o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True),
+            src_fine,
+            tgt_fine,
+            fine_voxel * thr_mult,
+            T_final,
+            o3d.pipelines.registration.TransformationEstimationPointToPoint(
+                with_scaling=True
+            ),
             o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=100),
         )
         T_final = poly.transformation
     est_scale = float(np.cbrt(np.linalg.det(T_final[:3, :3])))
-    vp(f"After scale-ICP: fitness={poly.fitness:.3f} rmse={poly.inlier_rmse:.5f} "
-       f"scale={est_scale:.4f}")
+    vp(
+        f"After scale-ICP: fitness={poly.fitness:.3f} rmse={poly.inlier_rmse:.5f} "
+        f"scale={est_scale:.4f}"
+    )
     best["scale"] = est_scale
 
     # ---- final evaluation on dense clouds at the transform ----
@@ -355,15 +418,22 @@ def register(source_path, target_path, out_dir,
     )
     vp(f"\nFinal (dense) fitness={ev.fitness:.3f} rmse={ev.inlier_rmse:.5f}")
 
-    metrics = dict(seed=seed, scale=est_scale, coarse_fitness=best["fitness"],
-                   icp_fitness=icp.fitness, icp_rmse=icp.inlier_rmse,
-                   final_fitness=ev.fitness, final_rmse=ev.inlier_rmse,
-                   T=T_final.copy())
+    metrics = dict(
+        seed=seed,
+        scale=est_scale,
+        coarse_fitness=best["fitness"],
+        icp_fitness=icp.fitness,
+        icp_rmse=icp.inlier_rmse,
+        final_fitness=ev.fitness,
+        final_rmse=ev.inlier_rmse,
+        T=T_final.copy(),
+    )
 
     # ---- save outputs ----
     if save_mesh:
-        np.savetxt(os.path.join(out_dir, "transform_source_to_target.txt"), T_final,
-                   fmt="%.8f")
+        np.savetxt(
+            os.path.join(out_dir, "transform_source_to_target.txt"), T_final, fmt="%.8f"
+        )
         # Row-major flattened 16 numbers on one line for pasting into MeshLab's
         # "Set/Freeze Matrix" dialog (Filters -> Normals/Transform).
         flat = " ".join(f"{v:.8f}" for v in T_final.flatten())
@@ -396,8 +466,10 @@ def register(source_path, target_path, out_dir,
         heat_stats = render_distance_heatmap(src_eval, tgt_pcd_full, heat_path)
         metrics["heat_stats"] = heat_stats
         vp(f"Saved overlay: {overlay_path}")
-        vp(f"Saved heatmap: {heat_path}  "
-           f"(mean {heat_stats['mean_mm']:.2f} mm, p95 {heat_stats['p95_mm']:.2f} mm)")
+        vp(
+            f"Saved heatmap: {heat_path}  "
+            f"(mean {heat_stats['mean_mm']:.2f} mm, p95 {heat_stats['p95_mm']:.2f} mm)"
+        )
 
     return metrics
 
@@ -407,16 +479,31 @@ if __name__ == "__main__":
     ap.add_argument("--source", required=True)
     ap.add_argument("--target", required=True)
     ap.add_argument("--out_dir", default="./registration_out")
-    ap.add_argument("--seed", type=int, default=0,
-                    help="RNG seed for reproducibility")
-    ap.add_argument("--scale_min", type=float, default=None,
-                    help="Lower bound of absolute scale search (use with --scale_max)")
-    ap.add_argument("--scale_max", type=float, default=None,
-                    help="Upper bound of absolute scale search (use with --scale_min)")
-    ap.add_argument("--n_scale_steps", type=int, default=13,
-                    help="Number of scale candidates to sweep (default 13)")
-    ap.add_argument("--jobs", type=int, default=None,
-                    help="Parallel workers for the scale sweep (default: CPUs-1)")
+    ap.add_argument("--seed", type=int, default=0, help="RNG seed for reproducibility")
+    ap.add_argument(
+        "--scale_min",
+        type=float,
+        default=None,
+        help="Lower bound of absolute scale search (use with --scale_max)",
+    )
+    ap.add_argument(
+        "--scale_max",
+        type=float,
+        default=None,
+        help="Upper bound of absolute scale search (use with --scale_min)",
+    )
+    ap.add_argument(
+        "--n_scale_steps",
+        type=int,
+        default=13,
+        help="Number of scale candidates to sweep (default 13)",
+    )
+    ap.add_argument(
+        "--jobs",
+        type=int,
+        default=None,
+        help="Parallel workers for the scale sweep (default: CPUs-1)",
+    )
     args = ap.parse_args()
 
     scale_range = None
@@ -427,5 +514,12 @@ if __name__ == "__main__":
             ap.error("--scale_min must be <= --scale_max")
         scale_range = (args.scale_min, args.scale_max)
 
-    register(args.source, args.target, args.out_dir, seed=args.seed,
-             scale_range=scale_range, n_scale_steps=args.n_scale_steps, jobs=args.jobs)
+    register(
+        args.source,
+        args.target,
+        args.out_dir,
+        seed=args.seed,
+        scale_range=scale_range,
+        n_scale_steps=args.n_scale_steps,
+        jobs=args.jobs,
+    )

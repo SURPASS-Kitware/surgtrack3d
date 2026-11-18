@@ -2,22 +2,24 @@ import argparse
 from collections.abc import Sequence
 
 import matplotlib
-matplotlib.use("tkagg")  # See https://github.com/matplotlib/matplotlib/issues/18406
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
+matplotlib.use("tkagg")  # See https://github.com/matplotlib/matplotlib/issues/18406
+from pathlib import Path
+
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from pathlib import Path
-import fast_tissue_rec.data_utils as data_utils
 from tqdm import tqdm
+
+import fast_tissue_rec.data_utils as data_utils
 
 
 def save_depth_image_visualizations(
     output_dir: Path, depth_maps: Sequence[npt.NDArray[np.float32]]
 ):
     depth_stack = np.array(depth_maps)
-    min_depth, max_depth = np.min(depth_stack[depth_stack>0.0]), np.max(depth_maps)
+    min_depth, max_depth = np.min(depth_stack[depth_stack > 0.0]), np.max(depth_maps)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
