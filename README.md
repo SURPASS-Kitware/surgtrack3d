@@ -4,9 +4,11 @@
   <img src="gif/main_animation.gif" alt="RGB, depth, reconstructed mesh, and AR overlay" width="60%">
 </p>
 
-Juan Antonio Barragan<sup>†1</sup>, Brendan Burkhart<sup>†2</sup>, Balazs Vagvolgyi<sup>†2</sup>, Roger D. Soberanis-Mukul<sup>2,3</sup>, Mathias Unberath<sup>1</sup>, Peter Kazanzides<sup>1</sup>, and Emad Boctor<sup>2</sup>
+<h3 align="center">
+  paper (coming soon) | <a href="https://doi.org/10.5281/zenodo.24322549">dataset</a> | <a href="https://youtu.be/au0IyaZDCOo">video presentation</a>
+</h3>
 
-<sup>†</sup> Equal contribution
+Juan Antonio Barragan, Brendan Burkhart, Balazs Vagvolgyi, Roger D. Soberanis-Mukul, Mathias Unberath, Peter Kazanzides, and Emad Boctor
 
 *Submitted to Healthcare Technology Letters*
 
