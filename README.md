@@ -5,7 +5,7 @@
 </p>
 
 <h3 align="center">
-  paper (coming soon) | <a href="https://doi.org/10.5281/zenodo.24322549">dataset</a> | <a href="https://youtu.be/au0IyaZDCOo">video presentation</a>
+  <a href="https://www.authorea.com/doi/full/10.22541/authorea.15012859/v1">paper (preprint)</a> | <a href="https://doi.org/10.5281/zenodo.24322549">dataset</a> | <a href="https://youtu.be/au0IyaZDCOo">video presentation</a>
 </h3>
 
 Juan Antonio Barragan, Brendan Burkhart, Balazs Vagvolgyi, Roger D. Soberanis-Mukul, Mathias Unberath, Peter Kazanzides, and Emad Boctor
